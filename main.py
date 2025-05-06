@@ -1,8 +1,11 @@
 from window import Window
+from tictactoe import MacroBoard
 
 def main():
-    window = Window(800, 600)
-    window.loop()
+    win = Window()
+    board = MacroBoard(win)
+    board.draw()
+    win.loop()
 
 if __name__ == "__main__":
     main()
