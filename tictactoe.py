@@ -9,8 +9,9 @@ class Microboard:
         self.frame = Frame(parent, borderwidth=1, relief='solid')
         self.frame.grid(row=0, column=0, sticky="nsew")
         self.data = [[None for _ in range(3)] for _ in range(3)]
-        self.canvas = None
+        self.overlay_win = None
         self.winner = None
+        self.disabled = False
 
     def draw(self):
         for i in range(3):
@@ -29,17 +30,17 @@ class Microboard:
                     button.grid(row=i, column=j, sticky='nsew')
                     self.data[i][j] = button
         if self.winner:
-            self.draw_overlay(self.winner)
+            self.draw_overlay_win(self.winner)
 
-    def draw_overlay(self, winner):
-        if self.canvas:
-            self.canvas.destroy()
-        self.canvas = Canvas(self.frame, bg=self.frame.cget("bg"), highlightthickness=0)
-        self.canvas.place(relx=0, rely=0, relwidth=1, relheight=1)
+    def draw_overlay_win(self, winner):
+        if self.overlay_win:
+            self.overlay_win.destroy()
+        self.overlay_win = Canvas(self.frame, bg=self.frame.cget("bg"), highlightthickness=0)
+        self.overlay_win.place(relx=0, rely=0, relwidth=1, relheight=1)
         def draw_text():
-            width = self.canvas.winfo_width()
-            height = self.canvas.winfo_height()
-            self.canvas.create_text(
+            width = self.overlay_win.winfo_width()
+            height = self.overlay_win.winfo_height()
+            self.overlay_win.create_text(
                 width / 2,
                 height / 2,
                 text=winner,
@@ -47,7 +48,16 @@ class Microboard:
                 fill='red' if winner == "X" else 'blue',
                 anchor='center'
             )
-        self.canvas.after_idle(draw_text)
+        self.overlay_win.after_idle(draw_text)
+
+    def draw_active_board(self, active):
+        border_color = 'yellow' if active else 'black'
+        self.frame.config(highlightbackground=border_color, highlightcolor=border_color, highlightthickness=2)
+
+        for row in self.data:
+            for button in row:
+                button.config(state="normal" if active and button['text'] == " " else "disabled")
+
 
 class MacroBoard:
     def __init__(self, win, game):
@@ -81,8 +91,20 @@ class MacroBoard:
         self.game.make_move(macro_i, macro_j, micro_i, micro_j)
         if self.game.macrodata[macro_i][macro_j] is not None:
             microboard.winner = self.game.macrodata[macro_i][macro_j]
-            microboard.draw_overlay(self.game.macrodata[macro_i][macro_j])
+            microboard.draw_overlay_win(self.game.macrodata[macro_i][macro_j])
+        self.refresh_microboard_states()
         print(f"Clicked macro ({macro_i}, {macro_j}) → micro ({micro_i}, {micro_j})")
+
+    def refresh_microboard_states(self):
+        for i in range(3):
+            for j in range(3):
+                micro = self.data[i][j]
+                if micro.winner is None:
+                    is_active = (self.game.active_macro == (i, j)) or (self.game.active_macro == (None, None))
+                    micro.draw_active_board(is_active)
+                else:
+                    micro.draw_active_board(False)
+
 
 class Game:
     def __init__(self):
@@ -90,11 +112,26 @@ class Game:
         self.macrodata = [[None for _ in range(3)] for _ in range(3)]
         self.turn = "O"
         self.winner = None
+        self.active_macro = (None, None)
 
     def make_move(self, macro_i, macro_j, micro_i, micro_j):
         self.microdata[macro_i][macro_j][micro_i][micro_j] = self.turn
         self.check_result()
+        next_macro_i, next_macro_j = micro_i, micro_j
+        if self.macrodata[next_macro_i][next_macro_j] is not None or self.is_microboard_full(next_macro_i, next_macro_j):
+            self.active_macro = (None, None)
+        else:
+            self.active_macro = (next_macro_i, next_macro_j)
         self.turn = "O" if self.turn == "X" else "X"
+
+    def is_microboard_full(self, macro_i, macro_j):
+        board = self.microdata[macro_i][macro_j]
+        for row in board:
+            for cell in row:
+                if cell is None:
+                    return False
+        return True
+
 
     def check_result(self):
         for i in range(3):
