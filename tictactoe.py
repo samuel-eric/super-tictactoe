@@ -1,4 +1,4 @@
-from tkinter import Button, Frame
+from tkinter import Button, Frame, Canvas
 from functools import reduce
 
 class Microboard:
@@ -9,6 +9,8 @@ class Microboard:
         self.frame = Frame(parent, borderwidth=1, relief='solid')
         self.frame.grid(row=0, column=0, sticky="nsew")
         self.data = [[None for _ in range(3)] for _ in range(3)]
+        self.canvas = None
+        self.winner = None
 
     def draw(self):
         for i in range(3):
@@ -26,6 +28,26 @@ class Microboard:
                     )
                     button.grid(row=i, column=j, sticky='nsew')
                     self.data[i][j] = button
+        if self.winner:
+            self.draw_overlay(self.winner)
+
+    def draw_overlay(self, winner):
+        if self.canvas:
+            self.canvas.destroy()
+        self.canvas = Canvas(self.frame, bg=self.frame.cget("bg"), highlightthickness=0)
+        self.canvas.place(relx=0, rely=0, relwidth=1, relheight=1)
+        def draw_text():
+            width = self.canvas.winfo_width()
+            height = self.canvas.winfo_height()
+            self.canvas.create_text(
+                width / 2,
+                height / 2,
+                text=winner,
+                font=('Arial', 48, 'bold'),
+                fill='red' if winner == "X" else 'blue',
+                anchor='center'
+            )
+        self.canvas.after_idle(draw_text)
 
 class MacroBoard:
     def __init__(self, win, game):
@@ -57,6 +79,9 @@ class MacroBoard:
             disabledforeground="red" if self.game.turn == "X" else "blue"
         )
         self.game.make_move(macro_i, macro_j, micro_i, micro_j)
+        if self.game.macrodata[macro_i][macro_j] is not None:
+            microboard.winner = self.game.macrodata[macro_i][macro_j]
+            microboard.draw_overlay(self.game.macrodata[macro_i][macro_j])
         print(f"Clicked macro ({macro_i}, {macro_j}) → micro ({micro_i}, {micro_j})")
 
 class Game:
@@ -64,15 +89,12 @@ class Game:
         self.microdata = [[[[None for _ in range(3)] for _ in range(3)] for _ in range(3)] for _ in range(3)]
         self.macrodata = [[None for _ in range(3)] for _ in range(3)]
         self.turn = "O"
-        self.win = None
+        self.winner = None
 
     def make_move(self, macro_i, macro_j, micro_i, micro_j):
         self.microdata[macro_i][macro_j][micro_i][micro_j] = self.turn
         self.check_result()
         self.turn = "O" if self.turn == "X" else "X"
-        print(self.microdata)
-        print(self.macrodata)
-        print(self.win)
 
     def check_result(self):
         for i in range(3):
@@ -110,22 +132,22 @@ class Game:
         for i in range(3):
             row = macroboard[i]
             if row[0] is not None and row[0] == row[1] == row[2]:
-                self.win = row[0]
+                self.winner = row[0]
                 return
 
         # Vertical
         for j in range(3):
             if macroboard[0][j] is not None and macroboard[0][j] == macroboard[1][j] == macroboard[2][j]:
-                self.win = macroboard[0][j]
+                self.winner = macroboard[0][j]
                 return
 
         # Diagonal TL-BR
         if macroboard[0][0] is not None and macroboard[0][0] == macroboard[1][1] == macroboard[2][2]:
-            self.win = macroboard[0][0]
+            self.winner = macroboard[0][0]
             return
 
         # Diagonal TR-BL
         if macroboard[0][2] is not None and macroboard[0][2] == macroboard[1][1] == macroboard[2][0]:
-            self.win = macroboard[0][2]
+            self.winner = macroboard[0][2]
             return
 
