@@ -1,4 +1,5 @@
 from tkinter import Button, Frame
+from functools import reduce
 
 class Microboard:
     def __init__(self, parent, macro_i, macro_j, handle_click):
@@ -27,12 +28,12 @@ class Microboard:
                     self.data[i][j] = button
 
 class MacroBoard:
-    def __init__(self, win):
+    def __init__(self, win, game):
         self.root = win.root
         self.outer_frame = Frame(self.root, borderwidth=4, relief='solid')
         self.outer_frame.grid(row=0, column=0, sticky="nsew")
         self.data = [[Microboard(self.outer_frame, i, j, self.make_move) for j in range(3)] for i in range(3)]
-        self.turn = "O"
+        self.game = game
 
     def draw(self):
         for i in range(3):
@@ -51,9 +52,80 @@ class MacroBoard:
         if button["state"] == "disabled":
             return
         button.config(
-            text=self.turn,
+            text=self.game.turn,
             state="disabled",
-            disabledforeground="red" if self.turn == "X" else "blue"
+            disabledforeground="red" if self.game.turn == "X" else "blue"
         )
-        self.turn = "O" if self.turn == "X" else "X"
+        self.game.make_move(macro_i, macro_j, micro_i, micro_j)
         print(f"Clicked macro ({macro_i}, {macro_j}) → micro ({micro_i}, {micro_j})")
+
+class Game:
+    def __init__(self):
+        self.microdata = [[[[None for _ in range(3)] for _ in range(3)] for _ in range(3)] for _ in range(3)]
+        self.macrodata = [[None for _ in range(3)] for _ in range(3)]
+        self.turn = "O"
+        self.win = None
+
+    def make_move(self, macro_i, macro_j, micro_i, micro_j):
+        self.microdata[macro_i][macro_j][micro_i][micro_j] = self.turn
+        self.check_result()
+        self.turn = "O" if self.turn == "X" else "X"
+        print(self.microdata)
+        print(self.macrodata)
+        print(self.win)
+
+    def check_result(self):
+        for i in range(3):
+            for j in range(3):
+                microboard = self.microdata[i][j]
+                self.check_microgame(microboard, i, j)
+        self.check_macrogame(self.macrodata)
+
+    def check_microgame(self, microboard, macro_i, macro_j):
+        # Horizontal
+        for i in range(3):
+            row = microboard[i]
+            if row[0] is not None and row[0] == row[1] == row[2]:
+                self.macrodata[macro_i][macro_j] = row[0]
+                return
+
+        # Vertical
+        for j in range(3):
+            if microboard[0][j] is not None and microboard[0][j] == microboard[1][j] == microboard[2][j]:
+                self.macrodata[macro_i][macro_j] = microboard[0][j]
+                return
+
+        # Diagonal TL-BR
+        if microboard[0][0] is not None and microboard[0][0] == microboard[1][1] == microboard[2][2]:
+            self.macrodata[macro_i][macro_j] = microboard[0][0]
+            return
+
+        # Diagonal TR-BL
+        if microboard[0][2] is not None and microboard[0][2] == microboard[1][1] == microboard[2][0]:
+            self.macrodata[macro_i][macro_j] = microboard[0][2]
+            return
+
+    def check_macrogame(self, macroboard):
+        # Horizontal
+        for i in range(3):
+            row = macroboard[i]
+            if row[0] is not None and row[0] == row[1] == row[2]:
+                self.win = row[0]
+                return
+
+        # Vertical
+        for j in range(3):
+            if macroboard[0][j] is not None and macroboard[0][j] == macroboard[1][j] == macroboard[2][j]:
+                self.win = macroboard[0][j]
+                return
+
+        # Diagonal TL-BR
+        if macroboard[0][0] is not None and macroboard[0][0] == macroboard[1][1] == macroboard[2][2]:
+            self.win = macroboard[0][0]
+            return
+
+        # Diagonal TR-BL
+        if macroboard[0][2] is not None and macroboard[0][2] == macroboard[1][1] == macroboard[2][0]:
+            self.win = macroboard[0][2]
+            return
+

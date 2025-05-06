@@ -1,9 +1,10 @@
 from window import Window
-from tictactoe import MacroBoard
+from tictactoe import MacroBoard, Game
 
 def main():
     win = Window()
-    board = MacroBoard(win)
+    game = Game()
+    board = MacroBoard(win, game)
     board.draw()
     win.loop()
 
