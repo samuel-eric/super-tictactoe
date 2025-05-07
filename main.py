@@ -1,11 +1,10 @@
 from window import Window
-from tictactoe import MacroBoard, Game
+from tictactoe import TicTacToe
 
 def main():
     win = Window()
-    game = Game()
-    board = MacroBoard(win, game)
-    board.draw()
+    game = TicTacToe(win)
+    game.draw()
     win.loop()
 
 if __name__ == "__main__":

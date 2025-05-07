@@ -1,4 +1,4 @@
-from tkinter import Button, Frame, Canvas
+from tkinter import Button, Frame, Canvas, Label
 from functools import reduce
 
 class Microboard:
@@ -59,13 +59,13 @@ class Microboard:
                 button.config(state="normal" if active and button['text'] == " " else "disabled")
 
 
-class MacroBoard:
-    def __init__(self, win, game):
-        self.root = win.root
-        self.outer_frame = Frame(self.root, borderwidth=4, relief='solid')
+class TicTacToe:
+    def __init__(self, win):
+        self.outer_frame = Frame(win.board_frame, borderwidth=4, relief='solid')
         self.outer_frame.grid(row=0, column=0, sticky="nsew")
         self.data = [[Microboard(self.outer_frame, i, j, self.make_move) for j in range(3)] for i in range(3)]
-        self.game = game
+        self.game = Game()
+        self.status_bar = StatusBar(win.status_frame, self.reset_all)
 
     def draw(self):
         for i in range(3):
@@ -77,6 +77,7 @@ class MacroBoard:
                 pady = (4, 1) if i == 0 else (1, 1) if i == 1 else (1, 4)
                 micro.frame.grid(row=i, column=j, padx=padx, pady=pady)
                 micro.draw()
+        self.status_bar.draw()
 
     def make_move(self, macro_i, macro_j, micro_i, micro_j):
         microboard = self.data[macro_i][macro_j]
@@ -93,9 +94,14 @@ class MacroBoard:
             microboard.winner = self.game.macrodata[macro_i][macro_j]
             microboard.draw_overlay_win(self.game.macrodata[macro_i][macro_j])
         self.refresh_microboard_states()
-        print(f"Clicked macro ({macro_i}, {macro_j}) → micro ({micro_i}, {micro_j})")
+        self.status_bar.make_move(self.game)
 
     def refresh_microboard_states(self):
+        if self.game.winner is not None:
+            for i in range(3):
+                for j in range(3):
+                    self.data[i][j].draw_active_board(False)
+            return
         for i in range(3):
             for j in range(3):
                 micro = self.data[i][j]
@@ -104,6 +110,49 @@ class MacroBoard:
                     micro.draw_active_board(is_active)
                 else:
                     micro.draw_active_board(False)
+
+    def redraw_all(self):
+        for i in range(3):
+            for j in range(3):
+                micro = self.data[i][j]
+                micro.winner = None
+                micro.data = [[None for _ in range(3)] for _ in range(3)]
+                # Clear frame
+                for widget in micro.frame.winfo_children():
+                    widget.destroy()
+                if micro.overlay_win:
+                    micro.overlay_win.destroy()
+                    micro.overlay_win = None
+                micro.draw()
+        self.refresh_microboard_states()
+
+    def reset_all(self):
+        self.game.reset_game()
+        self.redraw_all()
+
+
+class StatusBar:
+    def __init__(self, parent, reset):
+        self.label = Label(parent, text="Turn:", font=('Arial', 14))
+        self.label_status = Label(parent, text="O", font=('Arial', 20), fg="blue")
+        self.reset_button = Button(parent, text="Reset", command=reset)
+
+    def draw(self):
+        self.label.master.grid_columnconfigure(1, weight=1)
+        self.label.grid(row=0, column=0, padx=(10, 0))
+        self.label_status.grid(row=0, column=1, padx=(5, 10), sticky='w')
+        self.reset_button.grid(row=0, column=2, padx=(0, 10), sticky='e')
+
+    def make_move(self, game):
+        if game.winner is not None:
+            self.label['text'] = "Winner: "
+            self.label_status['text'] = game.winner
+        else:
+            self.label_status['text'] = game.turn
+            if game.turn == "O":
+                self.label_status.config(fg="blue")
+            else:
+                self.label_status.config(fg="red")
 
 
 class Game:
@@ -132,6 +181,12 @@ class Game:
                     return False
         return True
 
+    def reset_game(self):
+        self.microdata = [[[[None for _ in range(3)] for _ in range(3)] for _ in range(3)] for _ in range(3)]
+        self.macrodata = [[None for _ in range(3)] for _ in range(3)]
+        self.turn = "O"
+        self.winner = None
+        self.active_macro = (None, None)
 
     def check_result(self):
         for i in range(3):
